@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 #define MAX_CARS 100
 
 typedef struct {
