@@ -210,6 +210,7 @@ void vehicle_management(PGconn *conn) {
     scanf("%d", &choice);
 
     if (choice == 1) {
+        // Add Vehicle logic
         char name[100], type[50], color[50];
         double price, height, width;
 
@@ -242,8 +243,10 @@ void vehicle_management(PGconn *conn) {
         printf("Vehicle added successfully!\n");
         PQclear(res);
     } else if (choice == 2) {
+        // View Vehicles logic
         show_vehicles(conn);
     } else if (choice == 3) {
+        // Delete Vehicle logic
         int vehicle_id;
         printf("Enter Vehicle ID to delete: ");
         scanf("%d", &vehicle_id);
@@ -259,6 +262,76 @@ void vehicle_management(PGconn *conn) {
         }
 
         printf("Vehicle deleted successfully!\n");
+        PQclear(res);
+    } else if (choice == 4) {
+        // Update Vehicle logic
+        int vehicle_id;
+        printf("Enter Vehicle ID to update: ");
+        scanf("%d", &vehicle_id);
+
+        // Get the existing vehicle details
+        char query[256];
+        snprintf(query, sizeof(query), "SELECT * FROM vehicles WHERE vehicle_id = %d", vehicle_id);
+        PGresult *res = PQexec(conn, query);
+
+        if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+            fprintf(stderr, "Error fetching vehicle details: %s\n", PQerrorMessage(conn));
+            PQclear(res);
+            return;
+        }
+
+        if (PQntuples(res) == 0) {
+            printf("No vehicle found with ID %d.\n", vehicle_id);
+            PQclear(res);
+            return;
+        }
+
+        // Display the current details of the vehicle
+        printf("Current details for Vehicle ID %d:\n", vehicle_id);
+        printf("Name: %s\n", PQgetvalue(res, 0, 1));
+        printf("Type: %s\n", PQgetvalue(res, 0, 2));
+        printf("Color: %s\n", PQgetvalue(res, 0, 3));
+        printf("Price: %s\n", PQgetvalue(res, 0, 4));
+        printf("Height: %s\n", PQgetvalue(res, 0, 5));
+        printf("Width: %s\n", PQgetvalue(res, 0, 6));
+
+        // Ask for updated details
+        char name[100], type[50], color[50];
+        double price, height, width;
+
+        printf("\nEnter new Vehicle Name (leave blank to keep current): ");
+        scanf(" %[^\n]", name);
+        printf("Enter new Vehicle Type (leave blank to keep current): ");
+        scanf(" %[^\n]", type);
+        printf("Enter new Vehicle Color (leave blank to keep current): ");
+        scanf(" %[^\n]", color);
+        printf("Enter new Price (leave blank to keep current): ");
+        scanf("%lf", &price);
+        printf("Enter new Vehicle Height (leave blank to keep current): ");
+        scanf("%lf", &height);
+        printf("Enter new Vehicle Width (leave blank to keep current): ");
+        scanf("%lf", &width);
+
+        // Construct the update query
+        snprintf(query, sizeof(query),
+                 "UPDATE vehicles SET "
+                 "name = COALESCE(NULLIF('%s', ''), name), "
+                 "type = COALESCE(NULLIF('%s', ''), type), "
+                 "color = COALESCE(NULLIF('%s', ''), color), "
+                 "price = COALESCE(NULLIF(%lf, 0), price), "
+                 "height = COALESCE(NULLIF(%lf, 0), height), "
+                 "width = COALESCE(NULLIF(%lf, 0), width) "
+                 "WHERE vehicle_id = %d",
+                 name, type, color, price, height, width, vehicle_id);
+
+        res = PQexec(conn, query);
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            fprintf(stderr, "Error updating vehicle: %s\n", PQerrorMessage(conn));
+            PQclear(res);
+            return;
+        }
+
+        printf("Vehicle updated successfully!\n");
         PQclear(res);
     }
 }
