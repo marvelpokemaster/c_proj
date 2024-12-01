@@ -36,7 +36,7 @@ void addCustomer(PGconn *conn) {
 }
 
 void viewCustomers(PGconn *conn) {
-    PGresult *res = PQexec(conn, "SELECT id, name, phone, address, email, car_model, budget FROM customers;");
+    PGresult *res = PQexec(conn, "SELECT * FROM customers;");
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         fprintf(stderr, "Error fetching customers: %s\n", PQerrorMessage(conn));
