@@ -1,13 +1,32 @@
-CREATE DATABASE dealership;
+CREATE TABLE vehicles (
+    vehicle_id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    details TEXT,
+    price NUMERIC
+);
 
-\c dealership;
+CREATE TABLE customers (    phone VARCHAR(15)
+);
 
-CREATE TABLE customers (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50),
-    phone VARCHAR(15),
-    address VARCHAR(100),
-    email VARCHAR(50),
-    car_model VARCHAR(50),
-    budget NUMERIC(10, 2)
+CREATE TABLE sales (
+    sale_id SERIAL PRIMARY KEY,
+    vehicle_id INT REFERENCES vehicles(vehicle_id),
+    customer_id INT REFERENCES customers(customer_id),
+    amount_paid NUMERIC,
+    full_payment BOOLEAN,
+    sale_date TIMESTAMP DEFAULT NOW()
+);
+    customer_id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    address TEXT,
+    phone VARCHAR(15)
+);
+
+CREATE TABLE sales (
+    sale_id SERIAL PRIMARY KEY,
+    vehicle_id INT REFERENCES vehicles(vehicle_id),
+    customer_id INT REFERENCES customers(customer_id),
+    amount_paid NUMERIC,
+    full_payment BOOLEAN,
+    sale_date TIMESTAMP DEFAULT NOW()
 );
