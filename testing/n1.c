@@ -3,6 +3,13 @@
 #include <string.h>
 #include <libpq-fe.h>
 
+void view_vehicle_details(PGconn *conn, int vehicle_id);
+void book_vehicle(PGconn *conn, int vehicle_id);
+void show_vehicles(PGconn *conn);
+void manage_sales(PGconn *conn);
+void vehicle_management(PGconn *conn);
+void manage_customers(PGconn *conn);  // Function prototype
+
 void exit_with_error(PGconn *conn) {
     fprintf(stderr, "Error: %s\n", PQerrorMessage(conn));
     PQfinish(conn);
@@ -23,6 +30,27 @@ void show_vehicles(PGconn *conn) {
     }
 
     PQclear(res);
+
+    int proceed;
+    printf("\nWould you like to book a vehicle? (1 for Yes, 0 for No): ");
+    scanf("%d", &proceed);
+
+    if (proceed == 1) {
+        int vehicle_id;
+        printf("Enter the Vehicle ID to book: ");
+        scanf("%d", &vehicle_id);
+        view_vehicle_details(conn, vehicle_id);
+
+        char confirm;
+        printf("Do you want to proceed with booking this vehicle? (y/n): ");
+        scanf(" %c", &confirm);
+
+        if (confirm == 'y' || confirm == 'Y') {
+            book_vehicle(conn, vehicle_id);
+        } else {
+            printf("Booking canceled.\n");
+        }
+    }
 }
 
 void view_vehicle_details(PGconn *conn, int vehicle_id) {
@@ -135,6 +163,47 @@ void manage_sales(PGconn *conn) {
     }
 }
 
+void manage_customers(PGconn *conn) {
+    printf("Customer Management:\n1. View Customers\n2. Delete Customer\nChoice: ");
+    int choice;
+    scanf("%d", &choice);
+
+    if (choice == 1) {
+        PGresult *res = PQexec(conn, "SELECT * FROM customers");
+        if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+            fprintf(stderr, "Error fetching customers: %s\n", PQerrorMessage(conn));
+            PQclear(res);
+            return;
+        }
+
+        printf("Customer Records:\n");
+        for (int i = 0; i < PQntuples(res); i++) {
+            printf("Customer ID: %s | Name: %s | Address: %s | Phone: %s\n",
+                   PQgetvalue(res, i, 0), PQgetvalue(res, i, 1), PQgetvalue(res, i, 2),
+                   PQgetvalue(res, i, 3));
+        }
+
+        PQclear(res);
+    } else if (choice == 2) {
+        int customer_id;
+        printf("Enter Customer ID to delete: ");
+        scanf("%d", &customer_id);
+
+        char query[256];
+        snprintf(query, sizeof(query), "DELETE FROM customers WHERE customer_id = %d", customer_id);
+        PGresult *res = PQexec(conn, query);
+
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            fprintf(stderr, "Error deleting customer: %s\n", PQerrorMessage(conn));
+            PQclear(res);
+            return;
+        }
+
+        printf("Customer deleted successfully!\n");
+        PQclear(res);
+    }
+}
+
 void vehicle_management(PGconn *conn) {
     printf("Vehicle Management:\n1. Add Vehicle\n2. View Vehicles\n3. Delete Vehicle\n4. Update Vehicle\n5. Exit\nChoice: ");
     int choice;
@@ -148,22 +217,22 @@ void vehicle_management(PGconn *conn) {
         scanf(" %[^\n]", name);
         printf("Enter Vehicle Type: ");
         scanf(" %[^\n]", type);
-        printf("Enter Vehicle Height (in meters): ");
-        scanf("%lf", &height);
-        printf("Enter Vehicle Width (in meters): ");
-        scanf("%lf", &width);
         printf("Enter Vehicle Color: ");
         scanf(" %[^\n]", color);
-        printf("Enter Vehicle Price: ");
+        printf("Enter Price: ");
         scanf("%lf", &price);
+        printf("Enter Vehicle Height: ");
+        scanf("%lf", &height);
+        printf("Enter Vehicle Width: ");
+        scanf("%lf", &width);
 
         char query[512];
         snprintf(query, sizeof(query),
-                 "INSERT INTO vehicles (name, type, height, width, color, price) "
-                 "VALUES ('%s', '%s', %lf, %lf, '%s', %lf)",
-                 name, type, height, width, color, price);
-        PGresult *res = PQexec(conn, query);
+                 "INSERT INTO vehicles (name, type, color, price, height, width) "
+                 "VALUES ('%s', '%s', '%s', %lf, %lf, %lf)",
+                 name, type, color, price, height, width);
 
+        PGresult *res = PQexec(conn, query);
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
             fprintf(stderr, "Error adding vehicle: %s\n", PQerrorMessage(conn));
             PQclear(res);
@@ -191,72 +260,40 @@ void vehicle_management(PGconn *conn) {
 
         printf("Vehicle deleted successfully!\n");
         PQclear(res);
-    } else if (choice == 4) {
-        int vehicle_id;
-        char name[100], type[50], color[50];
-        double price, height, width;
-
-        printf("Enter Vehicle ID to update: ");
-        scanf("%d", &vehicle_id);
-        printf("Enter New Vehicle Name: ");
-        scanf(" %[^\n]", name);
-        printf("Enter New Vehicle Type: ");
-        scanf(" %[^\n]", type);
-        printf("Enter New Vehicle Height (in meters): ");
-        scanf("%lf", &height);
-        printf("Enter New Vehicle Width (in meters): ");
-        scanf("%lf", &width);
-        printf("Enter New Vehicle Color: ");
-        scanf(" %[^\n]", color);
-        printf("Enter New Vehicle Price: ");
-        scanf("%lf", &price);
-
-        char query[512];
-        snprintf(query, sizeof(query),
-                 "UPDATE vehicles SET name = '%s', type = '%s', height = %lf, width = %lf, color = '%s', price = %lf WHERE vehicle_id = %d",
-                 name, type, height, width, color, price, vehicle_id);
-        PGresult *res = PQexec(conn, query);
-
-        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-            fprintf(stderr, "Error updating vehicle: %s\n", PQerrorMessage(conn));
-            PQclear(res);
-            return;
-        }
-
-        printf("Vehicle updated successfully!\n");
-        PQclear(res);
     }
 }
 
 int main() {
-    PGconn *conn = PQconnectdb("user=postgres dbname=automobile_db password=yourpassword");
+    PGconn *conn = PQconnectdb("user=postgres dbname=automobile_db password=your_password");
+
     if (PQstatus(conn) != CONNECTION_OK) {
-        exit_with_error(conn);
+        fprintf(stderr, "Connection to database failed: %s\n", PQerrorMessage(conn));
+        PQfinish(conn);
+        exit(1);
     }
 
     int choice;
     do {
-        printf("\nAutomobile Management System\n");
-        printf("1. Vehicle\n2. Customer\n3. Sales\n4. Help\n5. Exit\nChoice: ");
+        printf("\nMain Menu:\n1. Vehicle Management\n2. Sales Management\n3. Customer Management\n4. Exit\n");
+        printf("Enter your choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
             case 1:
                 vehicle_management(conn);
                 break;
-            case 3:
+            case 2:
                 manage_sales(conn);
                 break;
-            case 4:
-                printf("Help: This is the manual.\n");
+            case 3:
+                manage_customers(conn);
                 break;
-            case 5:
-                printf("Exiting...\n");
+            case 4:
                 break;
             default:
-                printf("Invalid choice. Try again.\n");
+                printf("Invalid choice, please try again.\n");
         }
-    } while (choice != 5);
+    } while (choice != 4);
 
     PQfinish(conn);
     return 0;
