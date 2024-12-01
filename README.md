@@ -1,5 +1,3 @@
-# Automobile Management System
-
 Vehicle
 cust
 vehicle
