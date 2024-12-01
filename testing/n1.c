@@ -141,18 +141,27 @@ void vehicle_management(PGconn *conn) {
     scanf("%d", &choice);
 
     if (choice == 1) {
-        char name[100], details[200];
-        double price;
+        char name[100], type[50], color[50];
+        double price, height, width;
 
         printf("Enter Vehicle Name: ");
         scanf(" %[^\n]", name);
-        printf("Enter Vehicle Details: ");
-        scanf(" %[^\n]", details);
+        printf("Enter Vehicle Type: ");
+        scanf(" %[^\n]", type);
+        printf("Enter Vehicle Height (in meters): ");
+        scanf("%lf", &height);
+        printf("Enter Vehicle Width (in meters): ");
+        scanf("%lf", &width);
+        printf("Enter Vehicle Color: ");
+        scanf(" %[^\n]", color);
         printf("Enter Vehicle Price: ");
         scanf("%lf", &price);
 
         char query[512];
-        snprintf(query, sizeof(query), "INSERT INTO vehicles (name, details, price) VALUES ('%s', '%s', %lf)", name, details, price);
+        snprintf(query, sizeof(query),
+                 "INSERT INTO vehicles (name, type, height, width, color, price) "
+                 "VALUES ('%s', '%s', %lf, %lf, '%s', %lf)",
+                 name, type, height, width, color, price);
         PGresult *res = PQexec(conn, query);
 
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
@@ -184,22 +193,28 @@ void vehicle_management(PGconn *conn) {
         PQclear(res);
     } else if (choice == 4) {
         int vehicle_id;
-        char name[100], details[200];
-        double price;
+        char name[100], type[50], color[50];
+        double price, height, width;
 
         printf("Enter Vehicle ID to update: ");
         scanf("%d", &vehicle_id);
         printf("Enter New Vehicle Name: ");
         scanf(" %[^\n]", name);
-        printf("Enter New Vehicle Details: ");
-        scanf(" %[^\n]", details);
+        printf("Enter New Vehicle Type: ");
+        scanf(" %[^\n]", type);
+        printf("Enter New Vehicle Height (in meters): ");
+        scanf("%lf", &height);
+        printf("Enter New Vehicle Width (in meters): ");
+        scanf("%lf", &width);
+        printf("Enter New Vehicle Color: ");
+        scanf(" %[^\n]", color);
         printf("Enter New Vehicle Price: ");
         scanf("%lf", &price);
 
         char query[512];
         snprintf(query, sizeof(query),
-                 "UPDATE vehicles SET name = '%s', details = '%s', price = %lf WHERE vehicle_id = %d",
-                 name, details, price, vehicle_id);
+                 "UPDATE vehicles SET name = '%s', type = '%s', height = %lf, width = %lf, color = '%s', price = %lf WHERE vehicle_id = %d",
+                 name, type, height, width, color, price, vehicle_id);
         PGresult *res = PQexec(conn, query);
 
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
