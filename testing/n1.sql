@@ -1,25 +1,24 @@
 CREATE TABLE vehicles (
     vehicle_id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    price NUMERIC,
-    type VARCHAR(50),
-    height NUMERIC,
-    width NUMERIC,
-    color VARCHAR(50)
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    price NUMERIC(12, 2) NOT NULL,  -- Allows up to 9999999999.99
+    height NUMERIC(10, 2),         -- Allows up to 99999999.99
+    width NUMERIC(10, 2)           -- Allows up to 99999999.99
 );
 
 CREATE TABLE customers (
     customer_id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    address TEXT,
-    phone VARCHAR(15)
+    name VARCHAR(100) NOT NULL,
+    address TEXT NOT NULL,
+    phone VARCHAR(15) NOT NULL
 );
 
 CREATE TABLE sales (
     sale_id SERIAL PRIMARY KEY,
-    vehicle_id INT REFERENCES vehicles(vehicle_id),
-    customer_id INT REFERENCES customers(customer_id),
-    amount_paid NUMERIC,
-    full_payment BOOLEAN,
-    sale_date TIMESTAMP DEFAULT NOW()
+    vehicle_id INT REFERENCES vehicles(vehicle_id) ON DELETE CASCADE,
+    customer_id INT REFERENCES customers(customer_id) ON DELETE CASCADE,
+    amount_paid NUMERIC(10, 2) NOT NULL,
+    full_payment BOOLEAN DEFAULT FALSE
 );
