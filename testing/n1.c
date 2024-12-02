@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <libpq-fe.h>
 
 void view_vehicle_details(PGconn *conn, int vehicle_id);
@@ -8,7 +9,7 @@ void book_vehicle(PGconn *conn, int vehicle_id);
 void show_vehicles(PGconn *conn);
 void manage_sales(PGconn *conn);
 void vehicle_management(PGconn *conn);
-void manage_customers(PGconn *conn);  // Function prototype
+void manage_customers(PGconn *conn);
 
 void exit_with_error(PGconn *conn) {
     fprintf(stderr, "Error: %s\n", PQerrorMessage(conn));
@@ -17,7 +18,7 @@ void exit_with_error(PGconn *conn) {
 }
 
 void show_vehicles(PGconn *conn) {
-    PGresult *res = PQexec(conn, "SELECT vehicle_id, name FROM vehicles");
+    PGresult *res = PQexec(conn, "SELECT vehicle_id, name, type, color, price FROM vehicles");
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         fprintf(stderr, "Error fetching vehicles: %s\n", PQerrorMessage(conn));
         PQclear(res);
@@ -26,7 +27,9 @@ void show_vehicles(PGconn *conn) {
 
     printf("Available Vehicles:\n");
     for (int i = 0; i < PQntuples(res); i++) {
-        printf("%s. %s\n", PQgetvalue(res, i, 0), PQgetvalue(res, i, 1));
+        printf("%s. %s | Type: %s | Color: %s | Price: %s\n",
+               PQgetvalue(res, i, 0), PQgetvalue(res, i, 1), PQgetvalue(res, i, 2),
+               PQgetvalue(res, i, 3), PQgetvalue(res, i, 4));
     }
 
     PQclear(res);
@@ -67,8 +70,9 @@ void view_vehicle_details(PGconn *conn, int vehicle_id) {
     if (PQntuples(res) == 0) {
         printf("No details found for vehicle ID %d.\n", vehicle_id);
     } else {
-        printf("Details:\nName: %s\nDetails: %s\nPrice: %s\n",
-               PQgetvalue(res, 0, 1), PQgetvalue(res, 0, 2), PQgetvalue(res, 0, 3));
+        printf("Details:\nName: %s\nType: %s\nColor: %s\nPrice: %s\nHeight: %s\nWidth: %s\n",
+               PQgetvalue(res, 0, 1), PQgetvalue(res, 0, 2), PQgetvalue(res, 0, 3),
+               PQgetvalue(res, 0, 4), PQgetvalue(res, 0, 5), PQgetvalue(res, 0, 6));
     }
 
     PQclear(res);
@@ -87,6 +91,14 @@ void book_vehicle(PGconn *conn, int vehicle_id) {
     printf("Phone: ");
     scanf(" %s", phone);
 
+    // Validate phone number
+    for (int i = 0; i < strlen(phone); i++) {
+        if (!isdigit(phone[i])) {
+            printf("Error: Phone number must contain only digits.\n");
+            return;
+        }
+    }
+
     snprintf(query, sizeof(query),
              "INSERT INTO customers (name, address, phone) VALUES ('%s', '%s', '%s') RETURNING customer_id",
              name, address, phone);
@@ -103,6 +115,12 @@ void book_vehicle(PGconn *conn, int vehicle_id) {
 
     printf("Enter Amount Paid: ");
     scanf("%lf", &amount_paid);
+
+    if (amount_paid <= 0) {
+        printf("Error: Amount paid must be positive.\n");
+        return;
+    }
+
     printf("Full Payment? (y/n): ");
     scanf(" %c", &full_payment_choice);
 
@@ -210,7 +228,6 @@ void vehicle_management(PGconn *conn) {
     scanf("%d", &choice);
 
     if (choice == 1) {
-        // Add Vehicle logic
         char name[100], type[50], color[50];
         double price, height, width;
 
@@ -218,14 +235,19 @@ void vehicle_management(PGconn *conn) {
         scanf(" %[^\n]", name);
         printf("Enter Vehicle Type: ");
         scanf(" %[^\n]", type);
-        printf("Enter Vehicle Color: ");
+        printf("Enter Color: ");
         scanf(" %[^\n]", color);
         printf("Enter Price: ");
         scanf("%lf", &price);
-        printf("Enter Vehicle Height: ");
+        printf("Enter Height: ");
         scanf("%lf", &height);
-        printf("Enter Vehicle Width: ");
+        printf("Enter Width: ");
         scanf("%lf", &width);
+
+        if (price <= 0 || height <= 0 || width <= 0) {
+            printf("Error: Price, height, and width must be positive.\n");
+            return;
+        }
 
         char query[512];
         snprintf(query, sizeof(query),
@@ -235,7 +257,7 @@ void vehicle_management(PGconn *conn) {
 
         PGresult *res = PQexec(conn, query);
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-            fprintf(stderr, "Error adding vehicle: %s\n", PQerrorMessage(conn));
+            fprintf(stderr, "Error inserting vehicle: %s\n", PQerrorMessage(conn));
             PQclear(res);
             return;
         }
@@ -243,10 +265,8 @@ void vehicle_management(PGconn *conn) {
         printf("Vehicle added successfully!\n");
         PQclear(res);
     } else if (choice == 2) {
-        // View Vehicles logic
         show_vehicles(conn);
     } else if (choice == 3) {
-        // Delete Vehicle logic
         int vehicle_id;
         printf("Enter Vehicle ID to delete: ");
         scanf("%d", &vehicle_id);
@@ -264,67 +284,39 @@ void vehicle_management(PGconn *conn) {
         printf("Vehicle deleted successfully!\n");
         PQclear(res);
     } else if (choice == 4) {
-        // Update Vehicle logic
         int vehicle_id;
         printf("Enter Vehicle ID to update: ");
         scanf("%d", &vehicle_id);
 
-        // Get the existing vehicle details
-        char query[256];
-        snprintf(query, sizeof(query), "SELECT * FROM vehicles WHERE vehicle_id = %d", vehicle_id);
-        PGresult *res = PQexec(conn, query);
-
-        if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-            fprintf(stderr, "Error fetching vehicle details: %s\n", PQerrorMessage(conn));
-            PQclear(res);
-            return;
-        }
-
-        if (PQntuples(res) == 0) {
-            printf("No vehicle found with ID %d.\n", vehicle_id);
-            PQclear(res);
-            return;
-        }
-
-        // Display the current details of the vehicle
-        printf("Current details for Vehicle ID %d:\n", vehicle_id);
-        printf("Name: %s\n", PQgetvalue(res, 0, 1));
-        printf("Type: %s\n", PQgetvalue(res, 0, 2));
-        printf("Color: %s\n", PQgetvalue(res, 0, 3));
-        printf("Price: %s\n", PQgetvalue(res, 0, 4));
-        printf("Height: %s\n", PQgetvalue(res, 0, 5));
-        printf("Width: %s\n", PQgetvalue(res, 0, 6));
-
-        // Ask for updated details
         char name[100], type[50], color[50];
         double price, height, width;
 
-        printf("\nEnter new Vehicle Name (leave blank to keep current): ");
+        printf("Enter new Name (or '-' to skip): ");
         scanf(" %[^\n]", name);
-        printf("Enter new Vehicle Type (leave blank to keep current): ");
+        printf("Enter new Type (or '-' to skip): ");
         scanf(" %[^\n]", type);
-        printf("Enter new Vehicle Color (leave blank to keep current): ");
+        printf("Enter new Color (or '-' to skip): ");
         scanf(" %[^\n]", color);
-        printf("Enter new Price (leave blank to keep current): ");
+        printf("Enter new Price (or -1 to skip): ");
         scanf("%lf", &price);
-        printf("Enter new Vehicle Height (leave blank to keep current): ");
+        printf("Enter new Height (or -1 to skip): ");
         scanf("%lf", &height);
-        printf("Enter new Vehicle Width (leave blank to keep current): ");
+        printf("Enter new Width (or -1 to skip): ");
         scanf("%lf", &width);
 
-        // Construct the update query
+        char query[512];
         snprintf(query, sizeof(query),
                  "UPDATE vehicles SET "
-                 "name = COALESCE(NULLIF('%s', ''), name), "
-                 "type = COALESCE(NULLIF('%s', ''), type), "
-                 "color = COALESCE(NULLIF('%s', ''), color), "
-                 "price = COALESCE(NULLIF(%lf, 0), price), "
-                 "height = COALESCE(NULLIF(%lf, 0), height), "
-                 "width = COALESCE(NULLIF(%lf, 0), width) "
+                 "name = CASE WHEN '%s' <> '-' THEN '%s' ELSE name END, "
+                 "type = CASE WHEN '%s' <> '-' THEN '%s' ELSE type END, "
+                 "color = CASE WHEN '%s' <> '-' THEN '%s' ELSE color END, "
+                 "price = CASE WHEN %lf > 0 THEN %lf ELSE price END, "
+                 "height = CASE WHEN %lf > 0 THEN %lf ELSE height END, "
+                 "width = CASE WHEN %lf > 0 THEN %lf ELSE width END "
                  "WHERE vehicle_id = %d",
-                 name, type, color, price, height, width, vehicle_id);
+                 name, name, type, type, color, color, price, price, height, height, width, width, vehicle_id);
 
-        res = PQexec(conn, query);
+        PGresult *res = PQexec(conn, query);
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
             fprintf(stderr, "Error updating vehicle: %s\n", PQerrorMessage(conn));
             PQclear(res);
@@ -337,36 +329,42 @@ void vehicle_management(PGconn *conn) {
 }
 
 int main() {
-    PGconn *conn = PQconnectdb("user=postgres dbname=automobile_db password=your_password");
-
-    if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "Connection to database failed: %s\n", PQerrorMessage(conn));
-        PQfinish(conn);
-        exit(1);
+    PGconn *conn = PQconnectdb("dbname=automobile_db user=postgres password=your_password");
+    if (PQstatus(conn) == CONNECTION_BAD) {
+        exit_with_error(conn);
     }
 
     int choice;
     do {
-        printf("\nMain Menu:\n1. Vehicle Management\n2. Sales Management\n3. Customer Management\n4. Exit\n");
-        printf("Enter your choice: ");
+        printf("\nVehicle Management System:\n");
+        printf("1. View Vehicles\n");
+        printf("2. Manage Sales\n");
+        printf("3. Manage Vehicles\n");
+        printf("4. Manage Customers\n");
+        printf("5. Exit\n");
+        printf("Choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
-            case 1:
-                vehicle_management(conn);
-                break;
-            case 2:
-                manage_sales(conn);
-                break;
-            case 3:
-                manage_customers(conn);
-                break;
-            case 4:
-                break;
-            default:
-                printf("Invalid choice, please try again.\n");
+        case 1:
+            show_vehicles(conn);
+            break;
+        case 2:
+            manage_sales(conn);
+            break;
+        case 3:
+            vehicle_management(conn);
+            break;
+        case 4:
+            manage_customers(conn);
+            break;
+        case 5:
+            printf("Exiting...\n");
+            break;
+        default:
+            printf("Invalid choice. Try again.\n");
         }
-    } while (choice != 4);
+    } while (choice != 5);
 
     PQfinish(conn);
     return 0;
