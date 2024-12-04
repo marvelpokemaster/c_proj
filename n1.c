@@ -182,7 +182,7 @@ void manage_sales(PGconn *conn) {
 }
 
 void manage_customers(PGconn *conn) {
-    printf("Customer Management:\n1. View Customers\n2. Delete Customer\nChoice: ");
+    printf("Customer Management:\n1. View Customers\n2. Delete Customer\n3. Edit Customer\nChoice: ");
     int choice;
     scanf("%d", &choice);
 
@@ -219,6 +219,39 @@ void manage_customers(PGconn *conn) {
 
         printf("Customer deleted successfully!\n");
         PQclear(res);
+    } else if (choice == 3) { // Edit customer
+        int customer_id;
+        printf("Enter Customer ID to edit: ");
+        scanf("%d", &customer_id);
+
+        char name[100], address[200], phone[15];
+        printf("Enter new Name (or '-' to keep unchanged): ");
+        scanf(" %[^\n]", name);
+        printf("Enter new Address (or '-' to keep unchanged): ");
+        scanf(" %[^\n]", address);
+        printf("Enter new Phone (or '-' to keep unchanged): ");
+        scanf(" %s", phone);
+
+        char query[512];
+        snprintf(query, sizeof(query),
+                 "UPDATE customers SET "
+                 "name = CASE WHEN '%s' <> '-' THEN '%s' ELSE name END, "
+                 "address = CASE WHEN '%s' <> '-' THEN '%s' ELSE address END, "
+                 "phone = CASE WHEN '%s' <> '-' THEN '%s' ELSE phone END "
+                 "WHERE customer_id = %d",
+                 name, name, address, address, phone, phone, customer_id);
+
+        PGresult *res = PQexec(conn, query);
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            fprintf(stderr, "Error updating customer: %s\n", PQerrorMessage(conn));
+            PQclear(res);
+            return;
+        }
+
+        printf("Customer updated successfully!\n");
+        PQclear(res);
+    } else {
+        printf("Invalid choice. Returning to menu.\n");
     }
 }
 
