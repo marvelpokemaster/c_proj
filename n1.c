@@ -100,6 +100,23 @@ void exit_with_error(PGconn *conn) {
     PQfinish(conn);
     exit(1);
 }
+void just_show_vehicles(PGconn *conn) {
+    PGresult *res = PQexec(conn, "SELECT vehicle_id, name, type, color, price FROM vehicles");
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error fetching vehicles: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return;
+    }
+
+    printf("Available Vehicles:\n");
+    for (int i = 0; i < PQntuples(res); i++) {
+        printf("%s. %s | Type: %s | Color: %s | Price: %s\n",
+               PQgetvalue(res, i, 0), PQgetvalue(res, i, 1), PQgetvalue(res, i, 2),
+               PQgetvalue(res, i, 3), PQgetvalue(res, i, 4));
+    }
+
+    PQclear(res);
+}
 
 void show_vehicles(PGconn *conn) {
     PGresult *res = PQexec(conn, "SELECT vehicle_id, name, type, color, price FROM vehicles");
@@ -387,7 +404,7 @@ void vehicle_management(PGconn *conn) {
             printf("Vehicle added successfully!\n");
             PQclear(res);
         } else if (choice == 2) {
-            show_vehicles(conn);
+            just_show_vehicles(conn);
         } else if (choice == 3) {
             int vehicle_id;
             printf("Enter Vehicle ID to delete: ");
