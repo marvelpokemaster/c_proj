@@ -11,6 +11,8 @@ void manage_sales(PGconn *conn);
 void vehicle_management(PGconn *conn);
 void manage_customers(PGconn *conn);
 void search(PGconn *conn, char *target);
+void just_show_vehicles(PGconn *conn);
+void search_for_vehicle(PGconn *conn);
 
 typedef struct {
     char name[100];
