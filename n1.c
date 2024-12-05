@@ -10,6 +10,90 @@ void show_vehicles(PGconn *conn);
 void manage_sales(PGconn *conn);
 void vehicle_management(PGconn *conn);
 void manage_customers(PGconn *conn);
+void search(PGconn *conn, char *target);
+
+typedef struct {
+    char name[100];
+    char type[50];
+    char color[50];
+    float price;
+    float height;
+    float width;
+} car;
+
+void search(PGconn *conn, char *target) {
+    // Execute query
+    PGresult *res = PQexec(conn, "SELECT * FROM vehicles");
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "SQL query failed: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return;
+    }
+
+    int n = PQntuples(res);
+    car *arr = malloc(n * sizeof(car)); // Use dynamic memory allocation
+    if (!arr) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        PQclear(res);
+        return;
+    }
+
+    // Populate the array
+    for (int i = 0; i < n; i++) {
+        strncpy(arr[i].name, PQgetvalue(res, i, 1), sizeof(arr[i].name) - 1);
+        arr[i].name[sizeof(arr[i].name) - 1] = '\0'; // Null-terminate
+        strncpy(arr[i].type, PQgetvalue(res, i, 2), sizeof(arr[i].type) - 1);
+        arr[i].type[sizeof(arr[i].type) - 1] = '\0'; // Null-terminate
+        strncpy(arr[i].color, PQgetvalue(res, i, 3), sizeof(arr[i].color) - 1);
+        arr[i].color[sizeof(arr[i].color) - 1] = '\0'; // Null-terminate
+        arr[i].price = atof(PQgetvalue(res, i, 4));
+        arr[i].height = atof(PQgetvalue(res, i, 5));
+        arr[i].width = atof(PQgetvalue(res, i, 6));
+    }
+
+    // Sort using insertion sort
+    for (int i = 1; i < n; i++) {
+        car key = arr[i];
+        int j = i - 1;
+        while (j >= 0 && strcmp(arr[j].name, key.name) > 0) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = key;
+    }
+
+    // Perform binary search
+    int left = 0, right = n - 1;
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+
+        if (strcmp(arr[mid].name, target) == 0) {
+            printf("Name: %s | Type: %s | Color: %s | Price: %.2f | Height: %.2f | Width: %.2f\n",
+                   arr[mid].name, arr[mid].type, arr[mid].color, arr[mid].price, arr[mid].height, arr[mid].width);
+            free(arr);
+            PQclear(res);
+            return;
+        } else if (strcmp(arr[mid].name, target) < 0) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+
+    // If no match is found
+    printf("Vehicle not found.\n");
+
+    // Cleanup
+    free(arr);
+    PQclear(res);
+}
+
+void search_for_vehicle(PGconn *conn){
+    char target[100];
+    printf("Enter the vehicle to be searched :\n");
+    scanf("%s",&target);
+    search(conn, target);
+}
 
 void exit_with_error(PGconn *conn) {
     fprintf(stderr, "Error: %s\n", PQerrorMessage(conn));
@@ -283,7 +367,7 @@ void vehicle_management(PGconn *conn) {
             scanf("%lf", &width);
 
             if (price <= 0 || height <= 0 || width <= 0) {
-                printf("Error: Price, height, and width must be positive.\n");
+                printf("Error: Price, height, and widthvehicle_id must be positive.\n");
                 return;
             }
 
@@ -369,7 +453,7 @@ void vehicle_management(PGconn *conn) {
 }
 
 int main() {
-    PGconn *conn = PQconnectdb("dbname=automobile_db user=postgres password=your_password");
+    PGconn *conn = PQconnectdb("dbname=automobile_db user=postgres password=dummy");
     if (PQstatus(conn) == CONNECTION_BAD) {
         exit_with_error(conn);
     }
@@ -381,7 +465,8 @@ int main() {
         printf("2. Manage Sales\n");
         printf("3. Manage Vehicles\n");
         printf("4. Manage Customers\n");
-        printf("5. Exit\n");
+        printf("5. Search\n");
+        printf("6. Exit\n");
         printf("Choice: ");
         scanf("%d", &choice);
 
@@ -399,6 +484,9 @@ int main() {
             manage_customers(conn);
             break;
         case 5:
+            search_for_vehicle(conn);
+            break;
+        case 6:
             printf("Exiting...\n");
             break;
         default:
